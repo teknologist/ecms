@@ -17,11 +17,14 @@ import org.picocontainer.Startable;
 
 import javax.annotation.security.RolesAllowed;
 import javax.jcr.Node;
+import javax.jcr.RepositoryException;
 import javax.jcr.Session;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.*;
 import javax.ws.rs.core.*;
+import java.net.URLDecoder;
 import java.util.Locale;
+import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 
 
@@ -43,24 +46,14 @@ public class OpenInOfficeConnector implements ResourceContainer, Startable {
   private final String OPEN_DOCUMENT_ON_DESKTOP_RESOURCE_KEY = "OpenInOfficeConnector.label.exo.remote-edit.desktop";
   private final String OPEN_DOCUMENT_IN_DESKTOP_APP_RESOURCE_KEY = "OpenInOfficeConnector.label.exo.remote-edit.desktop-app";
   private final String OPEN_DOCUMENT_DEFAULT_TITLE               = "Open on Desktop";
-  private static final String MSOFFICE_MIMETYPE                  = "ms-office-mimetype";
   private final int CACHED_TIME = 60*24*30*12;
 
   private static final String VERSION_MIXIN ="mix:versionable";
 
-  private static String msofficeMimeType = ",doc,dot,docx,dotx,docm,dotm,xll,xls,xlt,xla,xlsx,xltx,xlsm,xltm,xlam,xlsb,ppt" +
-                                           ",pot,pps,ppa,pptx,potx,ppsx,ppam,pptm,potm,ppsm,";
   private NodeFinder nodeFinder;
   private LinkManager linkManager;
   private ResourceBundleService resourceBundleService;
   private DocumentTypeService documentTypeService;
-
-  private void init(){
-    String _msofficeMimeType = System.getProperty(MSOFFICE_MIMETYPE);
-    if(StringUtils.isNotEmpty(_msofficeMimeType)){
-      msofficeMimeType = _msofficeMimeType;
-    }
-  }
 
   public OpenInOfficeConnector(NodeFinder nodeFinder,
                                LinkManager linkManager,
@@ -86,6 +79,7 @@ public class OpenInOfficeConnector implements ResourceContainer, Startable {
           @QueryParam("lang") String language) throws Exception {
 
     //find from cached
+    objId = URLDecoder.decode(objId, "UTF-8");
     String[] nodeInfo = objId.split(":");
     String workspace = nodeInfo[0];
     String filePath = nodeInfo[1];
@@ -111,7 +105,7 @@ public class OpenInOfficeConnector implements ResourceContainer, Startable {
       try {
         if(!StringUtils.isEmpty(resourceBundle.getString(documentType.getResourceBundleKey())))
           title = resourceBundle.getString(documentType.getResourceBundleKey());
-      }catch(Exception ex){
+      }catch(MissingResourceException ex){
         String _openonDesktop = resourceBundle.getString(OPEN_DOCUMENT_IN_DESKTOP_APP_RESOURCE_KEY);
         if(_openonDesktop!=null && _openonDesktop.contains("{0}")) {
           title = _openonDesktop.replace("{0}", documentType.getResourceBundleKey());
@@ -129,10 +123,14 @@ public class OpenInOfficeConnector implements ResourceContainer, Startable {
       if (linkManager.isLink(node)) node = linkManager.getTarget(node);
       nodePath = node.getPath();
       isFile = node.isNodeType(NodetypeConstant.NT_FILE);
-    }catch(Exception ex){
-      if(log.isErrorEnabled()){log.error("Exception when get node with path: "+filePath);}
+    }catch(RepositoryException ex){
+      if(log.isErrorEnabled()){log.error("Exception when get node with path: "+filePath, ex);}
     }
 
+    boolean isMsoffice = false;
+    if (documentType.getResourceBundleKey() != OPEN_DOCUMENT_ON_DESKTOP_RESOURCE_KEY) {
+      isMsoffice = true;
+    }
     JSONObject rs = new JSONObject();
     rs.put("ico", ico);
     rs.put("title", title);
@@ -140,7 +138,7 @@ public class OpenInOfficeConnector implements ResourceContainer, Startable {
     rs.put("workspace", workspace);
     rs.put("filePath", nodePath);
     rs.put("isFile", isFile);
-    rs.put("isMsoffice", msofficeMimeType.contains(","+extension+","));
+    rs.put("isMsoffice", isMsoffice);
 
     builder = Response.ok(rs.toString(), MediaType.APPLICATION_JSON);
     builder.tag(etag);
@@ -233,7 +231,6 @@ public class OpenInOfficeConnector implements ResourceContainer, Startable {
 
   @Override
   public void start() {
-    init();
   }
 
   @Override

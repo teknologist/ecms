@@ -13,4 +13,10 @@
   <modules>
     <module>portlet</module>
   </modules>
+  <dependencies>
+    <dependency>
+      <groupId>org.exoplatform.ecms</groupId>
+      <artifactId>ecms-core-webui-fcc</artifactId>
+    </dependency>
+  </dependencies>
 </project>

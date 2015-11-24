@@ -296,18 +296,20 @@
 	
 	  var txtArea = document.getElementById(txtAreaId) ;
 	  var ifrm = document.createElement("IFRAME") ;
+
+
 	  with(ifrm) {
 	    className = 'ECMIframe' ;
 	    src = 'javascript:void(0)' ;
 	    frameBorder = 0 ;
 	    scrolling = "auto" ;
 	  }
-	
 	  var strValue = txtArea.value ;
 	  txtArea.parentNode.replaceChild(ifrm, txtArea) ;
 	  try {
 	    var doc = ifrm.contentWindow.document ;
 	    doc.open() ;
+	 	doc.write("<link rel='stylesheet' href='/eXoSkin/skin/css/Core.css'  />");
 	    doc.write(strValue) ;
 	    doc.close() ;
 	  } catch (ex) {}
@@ -425,6 +427,46 @@
     WCMUtils.prototype.hidePopover = function (element) {
         gj(element).popover('hide');
     };
+
+	/**
+	 * Create a notice
+	 * @param notice:  msg
+	 * @param closeable: can close
+	 */
+	WCMUtils.prototype.showNotice = function(noticeMsg, closeable, type){
+		gj("#_wcm-notice").remove();
+		//if(gj("#wcm-notice") === undefined){
+		if(noticeMsg===undefined) return;
+
+		var classType = "alert-success";
+		var iconType  = "uiIconSuccess";
+		if("error" === type) {
+			classType = "alert-warning";
+			iconType = "uiIconWarning";
+		}
+		var noticeHtml = "<div id=\"_wcm-notice\" style=\"display: none;\" class=\"alert "+classType+" wcmAlertSuccess\"><i class=\""+iconType+"\"></i></div>";
+		var styleStr = "";
+
+		//}
+		var _noticeElem = gj(noticeHtml);
+		if(noticeMsg === null || noticeMsg === '' || noticeMsg === undefined) {
+			styleStr = "display:none";
+		} else {
+			styleStr = "display:block; top:40px; position:fixed;";
+			var html  = '<i class="'+iconType+'"></i>' + noticeMsg;
+			if(closeable) html += '<a class="uiIconClose pull-right" style="cursor:pointer;" title="Close Window" onclick="eXo.ecm.WCMUtils.closeNotice();"></a>';
+		}
+		_noticeElem.html(html);
+		gj("body").append(_noticeElem);
+		styleStr += "margin-left: -"+Math.ceil(_noticeElem.outerWidth()/2)+"px";
+		_noticeElem.attr("style", styleStr);
+		setTimeout(function(){ eXo.ecm.WCMUtils.closeNotice(); }, 5000);
+	}
+
+	WCMUtils.prototype.closeNotice = function(){
+		var wcmNotice = document.getElementById("_wcm-notice");
+		wcmNotice.style.display = "none";
+	}
 
     eXo.ecm.WCMUtils = new WCMUtils();
 	
@@ -956,7 +998,9 @@
 			xmlHttpRequest.send();
 			return xmlHttpRequest.responseXML;
 		}
-	}	
+	}
+
+
 	
 	return {
 		WCMUtils : eXo.ecm.WCMUtils,
@@ -964,3 +1008,4 @@
 		SELocalization : eXo.ecm.SELocalization
 	};
 })(gj, base);
+

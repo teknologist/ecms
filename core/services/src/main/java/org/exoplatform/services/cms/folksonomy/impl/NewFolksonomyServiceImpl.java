@@ -150,6 +150,7 @@ public class NewFolksonomyServiceImpl implements NewFolksonomyService, Startable
    * Implement method in Startable
    */
   public void stop() {
+    tagPermissionList.clearCache();
   }
 
 
@@ -193,8 +194,7 @@ public class NewFolksonomyServiceImpl implements NewFolksonomyService, Startable
     if (listenerService!=null && activityService !=null) {
       try {
         if (activityService.isAcceptedNode(documentNode) || 
-            (documentNode.getPrimaryNodeType().getName().equals(NodetypeConstant.NT_FILE) && 
-                activityService.isBroadcastNTFileEvents(documentNode))) {
+            documentNode.getPrimaryNodeType().getName().equals(NodetypeConstant.NT_FILE)) {
           listenerService.broadcast(ActivityCommonService.TAG_ADDED_ACTIVITY, documentNode, tagValue);
         }
       } catch (Exception e) {
@@ -443,7 +443,7 @@ public class NewFolksonomyServiceImpl implements NewFolksonomyService, Startable
   }
 
   /**
-   * init all avaiable TagStylePlugin
+   * init all available TagStylePlugin
    *
    * @throws Exception
    */
@@ -457,6 +457,14 @@ public class NewFolksonomyServiceImpl implements NewFolksonomyService, Startable
         }
       }
     }
+    initTagPermissionListCache();
+  }
+
+  /**
+   * init the cache tagPermissionList
+   * @throws Exception
+   */
+  public void initTagPermissionListCache() throws Exception {
     List<String> _tagPermissionList = new ArrayList<String>();
     for (TagPermissionPlugin plugin : tagPermissionPlugin_) {
       try {
@@ -467,6 +475,7 @@ public class NewFolksonomyServiceImpl implements NewFolksonomyService, Startable
         }
       }
     }
+    tagPermissionList.clearCache();
     tagPermissionList.put(TAG_PERMISSION_LIST, _tagPermissionList);
   }
 
@@ -813,6 +822,10 @@ public class NewFolksonomyServiceImpl implements NewFolksonomyService, Startable
     if (_tagPermissionList!=null && !_tagPermissionList.contains(usersOrGroups)) {
       _tagPermissionList.add(usersOrGroups);
       tagPermissionList.put(TAG_PERMISSION_LIST, _tagPermissionList);
+    } else if (_tagPermissionList == null) {
+      _tagPermissionList = new ArrayList<String>();
+      _tagPermissionList.add(usersOrGroups);
+      tagPermissionList.put(TAG_PERMISSION_LIST, _tagPermissionList);
     }
   }
 
@@ -840,10 +853,13 @@ public class NewFolksonomyServiceImpl implements NewFolksonomyService, Startable
   public boolean canEditTag(int scope, List<String> memberships) {
     if (scope == PUBLIC) {
       List<String> _tagPermissionList = tagPermissionList.get(TAG_PERMISSION_LIST);
+      if (_tagPermissionList == null || _tagPermissionList.size() == 0) {
+        return false;
+      }
       for (String membership : memberships) {
-        if (_tagPermissionList!=null && _tagPermissionList.contains(membership))
+        if (_tagPermissionList.contains(membership))
           return true;
-        if (_tagPermissionList!=null && membership.contains(":")) {
+        if (membership.contains(":")) {
           if (_tagPermissionList.contains("*" + membership.substring(membership.indexOf(":"))))
             return true;
         }

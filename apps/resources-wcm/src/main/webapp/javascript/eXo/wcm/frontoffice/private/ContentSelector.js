@@ -28,7 +28,9 @@
 		this.deleteConfirmationMsg="";
 	  this.switchView = false;
 	  if(this.viewType==undefined)
-			this.viewType="list";
+		this.viewType="list";
+		this.lstFiles=[];
+		this.lstFileName=[];
 	}
 	EcmContentSelector.prototype.setDeleteConfirmationMessage = function(msg) {
 		this.deleteConfirmationMsg=msg;
@@ -218,9 +220,10 @@
 			else filter = dropdownlist.options[dropdownlist.selectedIndex].value;
 		}	else filter = 'All';
 	
-		var command = ECS.cmdEcmDriver+ECS.cmdGetFolderAndFile+"driverName="+driverName+"&currentFolder="+encodeURIComponent(currentFolder)+"&currentPortal="+ECS.portalName+"&repositoryName="+ECS.repositoryName+"&workspaceName="+ECS.workspaceName;
+		var command = ECS.cmdEcmDriver+ECS.cmdGetFolderAndFile+"driverName="+driverName+"&currentFolder="+currentFolder+"&currentPortal="+ECS.portalName+"&repositoryName="+ECS.repositoryName+"&workspaceName="+ECS.workspaceName;
 		var url = ECS.hostName + ECS.connector+command+"&filterBy="+filter+"&type="+eXo.ecm.ECS.typeObj;
-
+		// Encode also drive name
+		url = encodeURI(url);
 		//if(eXo.ecm.ECS.strConnection == url) return;	
 		eXo.ecm.ECS.strConnection = url;
 		eXo.ecm.ECS.renderSubTrees(currentNode, event, url);
@@ -305,7 +308,9 @@
 		}
 	};
 	
-	EcmContentSelector.prototype.renderSubTrees = function(currentNode, event, connector) {  
+	EcmContentSelector.prototype.renderSubTrees = function(currentNode, event, connector) {
+		eXo.ecm.ECS.lstFiles=[];
+		eXo.ecm.ECS.lstFileName=[];
 		var event = event || window.event;
 		if (event)
 			event.cancelBubble = true;  
@@ -599,7 +604,7 @@
 					var clazzItem = eXo.ecm.ECS.getClazzIcon(list[i].getAttribute("nodeType"));
 					var newRow = tblRWS.tBodies[0].insertRow(i);
 					newRow.className = clazz;
-					gj(newRow.insertCell(0)).html('<a url="'+decodeURIComponent(url)+'" path="'+path+'" nodeType="'+nodeType+'" style = "overflow:hidden;" rel="tooltip" data-placement="bottom" title="'+decodeURIComponent(node)+'" onclick="eXo.ecm.ECS.insertContent(this);">'+'<i class="'+clazzItem+'"></i>&nbsp;'+decodeURIComponent(node)+'</a>');
+					gj(newRow.insertCell(0)).html('<a class="Item" url="'+decodeURIComponent(url)+'" path="'+path+'" nodeType="'+nodeType+'" style = "overflow:hidden;" rel="tooltip" data-placement="bottom" title="'+decodeURIComponent(node)+'" onclick="eXo.ecm.ECS.insertContent(this);">'+'<i class="'+clazzItem+'"></i>&nbsp;'+decodeURIComponent(node)+'</a>');
 					gj(newRow.insertCell(1)).html('<div class="Item">'+ list[i].getAttribute("dateCreated") +'</div>');
 					gj(newRow.insertCell(2)).html('<div class="Item">'+ size +'</div>');
 				} else {				  
@@ -607,6 +612,10 @@
 					var command = ECS.connector + "/thumbnailImage/medium/" + ECS.repositoryName + "/" + ECS.workspaceName + path + "/?reloadnum=" + randomId;        
 					strViewContent += '<div id="'+randomId+'" class="actionIconBox" onclick="eXo.ecm.ECS.insertContent(this);" url="'+decodeURIComponent(url)+'" path="'+path+'" nodeType="'+nodeType+'" rel="tooltip" data-placement="bottom" title="'+decodeURIComponent(node)+'"><div class="nodeLabel"><div class="thumbnailImage"><div style="display: block;" class="LoadingProgressIcon"><img alt="Loading Process" id="thumbnail'+randomId+'" '+imageAttribute+'="'+command+'" onerror="var img = gj(this.parentNode).next(\'i:first\')[0]; img.style.display = \'block\'; this.parentNode.style.display = \'none\';" onload="this.parentNode.style.backgroundImage=\'none\'" /></div><i style="display: none;" class="uiIcon64x64FileDefault uiIcon64x64nt_file  '+nodeTypeIcon+'"></i></div><div class="actionIconLabel" style="width: auto;"><a class="actionLabel" onclick="eXo.ecm.ECS.insertContent(this);" url="'+url+'" path="'+path+'" nodeType="'+nodeType+'" rel="tooltip" data-placement="bottom" title="'+decodeURIComponent(node)+'">'+decodeURIComponent(node)+'</a></div></div></div>';
 				}
+				var isVersion = list[i].getAttribute("isVersioned");
+				var isVersionSupport = list[i].getAttribute("isVersionSupport");
+				eXo.ecm.ECS.lstFiles.push({"name":node, "isVersioned":isVersion, "isVersionSupport":isVersionSupport})
+				eXo.ecm.ECS.lstFileName.push(node);
 			}
 			if(container) {
 				gj(container).html(strViewContent);
@@ -729,7 +738,7 @@
 			var node = list[i].getAttribute("name");
 			var newRow = tblRWS.tBodies[0].insertRow(i);
 			gj(newRow.insertCell(0)).html('<a class="Item" url="'+url+'" linkTarget ="' + linkTarget + '" path="'+path+'" nodeType="'+nodeType+'" style = "overflow:hidden;" rel="tooltip" data-placement="bottom" title="'+decodeURIComponent(node)+'" onclick="eXo.ecm.ECS.addFile2ListContent(this);">'+'<i class="'+clazzItem+'"></i>&nbsp;'+decodeURIComponent(node)+'</a>');
-					
+
 		}
 		
 		if(i > 9) {
@@ -976,6 +985,7 @@
 					window.opener.document.getElementById(eXp.getParameterValueByName("browserType")).value=strHTML;
 				} else {
 					if(nodeType.indexOf("image") >=0) {
+						name = escape(name);
 						strHTML += "<img src=\""+url+"\" name=\""+name+"\" alt=\""+name+"\"/>";
 					} else {
 						strHTML += "<a href=\"" + url+"\">"+name+"</a>";		
@@ -1028,16 +1038,21 @@
    }
   };
 	
-	EcmContentSelector.prototype.insertMultiContent = function(operation, currentpath) {
+	EcmContentSelector.prototype.insertMultiContent = function(operation, currentpath,operationType,dpath) {
 		var rws = document.getElementById("RightWorkspace");
 		var tblContent = document.getElementById("ListFilesContent");
 		var rowsContent = gj(tblContent).find("tr");
 		if (rowsContent.length <= 1) {
 	    var msg = eXo.ecm.WCMUtils.getBundle('ContentSelector.msg.no-file-selected', eXo.ecm.ECS.userLanguage);
 	    alert(msg);
+	    var additionParam = "&oper=clean"
+	    var actionSaveTemp = rws.getAttribute("actionSaveTemp");
+	    var action =eXo.ecm.WCMUtils.addParamIntoAjaxEventRequest(actionSaveTemp, additionParam);
+	    eval(action);
 	    return;
 	  }
 		var strContent = "";
+		var oper = operationType;
 		for(var i = 0; i < rowsContent.length; i++) {
 			var nodeContent = gj(rowsContent[i]).find("a.Item:first")[0];
 			if(nodeContent) {
@@ -1049,13 +1064,19 @@
 		//strContent = escape(strContent);
 		if (operation) {
 			var actionSaveTemp = rws.getAttribute("actionSaveTemp");
+			var additionParam;
 			if (actionSaveTemp) {
-			  var additionParam = "&driverName=" + this.driverName + "&currentPath=" + encodeURIComponent(currentpath) + '&itemPaths=' + strContent
+				if(dpath!=null){
+					currentPath=dpath;
+					additionParam = "&driverName=" + this.driverName + "&currentPath=" + encodeURIComponent(currentpath)  + '&oper=' + oper + '&path=' + dpath 
+				}
+				else
+			  additionParam = "&driverName=" + this.driverName + "&currentPath=" + encodeURIComponent(currentpath)  + '&oper=' + oper + '&path=' + path
 		  	  action = eXo.ecm.WCMUtils.addParamIntoAjaxEventRequest(actionSaveTemp, additionParam);
 			}else return;      
 		}else if(action){
 			action = action.substring(0, action.length - 2);
-			action += '&objectId=' + strContent + '\')';
+			action += '&objectId=' + "" + '\')';
 		} else return;	
 		eval(action);  
 	};
@@ -1086,7 +1107,7 @@
 		var actionCell = newRow.insertCell(1);
 		gj(actionCell).html('<a class="actionIcon" onclick="eXo.ecm.ECS.removeContent(this);"><i class="uiIconDelete uiIconLightGray""></i></a>');
 		actionCell.className = "center";
-		this.insertMultiContent("SaveTemporary", path);	
+		this.insertMultiContent("SaveTemporary", path,"add",null);
 	};
 	
 	EcmContentSelector.prototype.addFileSearchListSearch = function() {
@@ -1126,7 +1147,9 @@
 		var objRow = gj(objNode).parents("tr:first")[0];
 		tblListFilesContent.deleteRow(objRow.rowIndex);	
 		eXo.ecm.ECS.pathContent = false;
-		this.insertMultiContent("SaveTemporary", this.initPathExpanded);
+		var aItem = objRow.getElementsByTagName('a')[0];
+		var dpath =  aItem.getAttribute("path");
+		this.insertMultiContent("SaveTemporary", this.initPathExpanded,"delete",dpath);
 	}
 	
 	EcmContentSelector.prototype.changeFilter = function() {

@@ -16,6 +16,7 @@
  */
 package org.exoplatform.wcm.connector.fckeditor;
 
+import java.net.URLDecoder;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -79,6 +80,7 @@ import org.exoplatform.wcm.connector.handler.FCKFileHandler;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
+import org.apache.commons.lang.StringUtils;
 
 /**
  * Returns a list of drives/folders/documents in a specified location for a given user. Also, it processes the file uploading action.
@@ -349,6 +351,7 @@ public class DriverConnector extends BaseConnector implements ResourceContainer 
                                                    Text.escapeIllegalJcrChars(driverName),
                                                    Text.escapeIllegalJcrChars(currentFolder));
 
+      if(StringUtils.isNotEmpty(fileName)) fileName = URLDecoder.decode(fileName, "UTF-8");
       return fileUploadHandler.checkExistence(currentFolderNode, fileName);
     } catch (Exception e) {
       if (LOG.isErrorEnabled()) {
@@ -410,9 +413,11 @@ public class DriverConnector extends BaseConnector implements ResourceContainer 
       @QueryParam("language") String language,
       @QueryParam("fileName") String fileName,
       @QueryParam("uploadId") String uploadId,
-      @QueryParam("existenceAction") String existenceAction) throws Exception {
+      @QueryParam("existenceAction") String existenceAction,
+      @QueryParam("srcAction") String srcAction) throws Exception {
     try {
       // Check upload status
+      if(StringUtils.isNotEmpty(fileName)) fileName = URLDecoder.decode(fileName, "UTF-8");
       Response msgResponse = fileUploadHandler.checkStatus(uploadId, language);
       if (msgResponse != null) return msgResponse;
 
@@ -891,6 +896,10 @@ public class DriverConnector extends BaseConnector implements ResourceContainer 
       CacheControl cacheControl = new CacheControl();
       cacheControl.setNoCache(true);
       return fileUploadHandler.saveAsNTFile(currentFolderNode, uploadId, fileName, language, siteName, userId, existenceAction);
+    }else if(FileUploadHandler.SAVE_NEW_VERSION_ACTION.equals(action)){
+      CacheControl cacheControl = new CacheControl();
+      cacheControl.setNoCache(true);
+      return fileUploadHandler.saveAsNTFile(currentFolderNode, uploadId, fileName, language, siteName, userId, existenceAction,true);
     }
     return fileUploadHandler.control(uploadId, action);
   }
