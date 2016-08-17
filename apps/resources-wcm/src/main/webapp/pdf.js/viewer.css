@@ -266,7 +266,7 @@ body {
 #loadingBar {
   position: relative;
   width: 100%;
-  height: 6px;
+  height: 10px;
   background-color: #333;
   border-bottom: 1px solid #333;
 }
@@ -281,6 +281,7 @@ body {
   overflow: hidden;
   -webkit-transition: width 200ms;
   transition: width 200ms;
+  border-radius: 0;
 }
 
 @-webkit-keyframes progressIndeterminate {
@@ -307,10 +308,9 @@ body {
   left: 0;
   height: 100%;
   width: 50px;
-
-  background-image: linear-gradient(to right, #999 0%, #fff 50%, #999 100%);
+  /*background-image: linear-gradient(to right, #999 0%, #008000 50%, #999 100%);*/
   background-size: 100% 100%;
-  background-repeat: no-repeat;
+  background-color: #008000;
 
   -webkit-animation: progressIndeterminate 2s linear infinite;
   animation: progressIndeterminate 2s linear infinite;
@@ -442,7 +442,7 @@ body {
   padding: 4px;
 }
 #toolbarViewerRight{
-  width: 55px;
+  width: 85px;
   padding: 4px;
 }
 
